@@ -1,0 +1,202 @@
+<html>
+<head>
+	<script src="bower_components/socket.io-client/dist/socket.io.js"></script>
+	<script src="bower_components/jquery/dist/jquery.min.js"></script>
+	<link href="https://fonts.googleapis.com/css?family=Electrolize" rel="stylesheet">
+	<style>
+		body{
+			background-color:black;
+			font-family: 'Electrolize', sans-serif;
+			color:green;
+			margin:0px; padding:0px;
+			overflow:hidden;
+		}
+		.time{
+			font-size:100px;
+			padding-top:300px;
+			text-align:center;
+		}
+		.timevalue{
+			width:130px;
+			display:inline-block;
+			text-align:center;
+		}
+		.wires{
+			z-index:1000
+		}
+		#canvas{
+			padding-left: 0;
+			padding-right: 0;
+			margin-left: auto;
+			margin-right: auto;
+			display: block;
+			width: 500px;
+			margin-top:100px;
+			z-index:1000
+		}
+		.overlay{
+			font-size:100px;
+			font-weight:1000;
+			position:absolute;
+			width:100%;
+			height:100%;
+			position:absolute;
+			color:white;
+			text-align:center;
+			z-index:99;
+			padding-top:400px;
+		}
+		.fail{
+			display:none;
+			background-color:red;
+		}
+		.win{
+			display:none;
+			background-color:green;
+		}
+	</style>
+</head>
+<body>
+	<div class="fail overlay">
+		BOMB EXPLODED!!
+	</div>
+	<div class="win overlay">
+		BOMB DEFUSED
+	</div>
+	<div class="time">
+		<div id="hours" class="timevalue">01</div> : <div id="minutes" class="timevalue">00</div> : <div id="seconds" class="timevalue">00</div>
+	</div>
+	<div class="wires">
+		<canvas id="canvas" ></canvas>
+	</div>
+	<script>
+	
+		var cross = new Audio('sounds/lost.mp3');
+		var fail = new Audio('sounds/fail.wav');
+		var happy = new Audio('sounds/happy.wav');
+		
+		var socket = io('http://localhost:3000');
+		socket.on('connect', function(){console.log("OK")});
+		socket.on('msg', function(data){
+			if(data.length==4){
+				for(var i=0;i<data.length;i++){
+					if(data[i]!="0")
+						process_cut(i,data[i])
+				}
+			}
+		});
+		socket.on('disconnect', function(){});
+		//yellow,green,orange,grey
+		var ar=[0,0,0,0]
+		var solution=[1,2,3,4]
+		function process_cut(id,order){
+			wiresLeft=(ar.filter(function(r){
+				return r==0
+			})).length
+			if(ar[id]==0 && wiresLeft>1){
+				ar[id]=order;
+				drawCross(3-id)
+				cross.play();
+			}else if(ar[id]==0 && wiresLeft==1){
+				ar[id]=order;
+				drawCross(3-id)
+				var mistake=false;
+				cross.play();
+				for(var i=0;i<ar.length;i++){
+					if(ar[i]!=solution[i])
+						mistake=true
+				}
+
+				if(mistake){
+					fail.play()
+					$(".fail").css("display","block")
+				}else{
+					happy.play()
+					$(".win").css("display","block")
+				}
+			}
+			
+		}
+		//timer
+		var time=(new Date()).getTime()/1000;
+		var end=time+(60*60)+1
+		function countdown(){
+			var currenttime=(new Date()).getTime()/1000;
+			var timeLeft=Math.round(end-currenttime)
+			if(timeLeft<=0){
+				fail.play()
+				$(".fail").css("display","block")
+			}
+			var hours=formatTime(Math.floor(timeLeft/(60*60)))
+			timeLeft-=hours*60*60
+			var minutes=formatTime(Math.floor(timeLeft/(60)))
+			timeLeft-=minutes*60
+			var seconds=formatTime(Math.floor(timeLeft))
+			timestring=hours+":"+minutes+":"+seconds
+			$("#hours").html(hours)
+			$("#minutes").html(minutes)
+			$("#seconds").html(seconds)
+			
+		}
+		function formatTime(time){
+			time=String(time)
+			if(time.length==1){
+				return "0"+time
+			}else{
+				return time
+			}
+		}
+		
+		//draw wires
+		var canvas = document.getElementById('canvas');
+		var context = canvas.getContext('2d');
+		function drawWire(x,y,color, name){
+			context.beginPath();
+			context.moveTo(x, y);
+			context.lineTo(x, y+100);
+			context.lineWidth = 3;
+			context.strokeStyle = color;
+			context.stroke();
+			
+			context.beginPath();
+			context.moveTo(x, y+100);
+			context.lineTo(x, y+110);
+			context.lineWidth = 1;
+			context.strokeStyle = "#fff";
+			context.stroke();
+			
+			context.beginPath();
+			context.moveTo(x, y-10);
+			context.lineTo(x, y);
+			context.lineWidth = 1;
+			context.strokeStyle = "#fff";
+			context.stroke();
+			
+			context.font = "15px Arial";
+			context.fillStyle = "white";
+			context.textAlign = "center";
+			context.fillText(name,x,y-24);
+		}
+		var startx=90
+		var starty=40
+		var spacingx=50
+		function drawCross(position){
+			context.beginPath();
+			context.moveTo(startx+spacingx*position-10, starty+40);
+			context.lineTo(startx+spacingx*position+10, starty+60);
+			context.lineWidth = 5;
+			context.strokeStyle = "red";
+			context.stroke();
+		}
+		
+		drawWire(startx,starty,"grey","F5")
+		drawWire(startx+spacingx,starty,"orange","C1")
+		drawWire(startx+spacingx*2,starty,"green","K9")
+		drawWire(startx+spacingx*3,starty,"yellow","Q2")
+		
+		setInterval(countdown,1000)
+	</script>
+</body>
+</html>
+
+
